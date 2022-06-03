@@ -17,8 +17,9 @@ bot = commands.Bot(
 
 @bot.event
 async def on_ready():
-    print(f'Logged in as {bot.user} (ID: {bot.user.id})')
-    print('------')
+    await bot.change_presence(activity=discord.Game(name="Flamingo"))
+    print(f'Logged in as {bot.user}')
+    print('--------------------------')
 
 bot.load_extension('cogs')
 
