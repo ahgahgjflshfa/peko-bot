@@ -24,7 +24,36 @@ ffmpeg_options = {
     'options': '-vn'
 }
 
+FFMPEG_OPTS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
+
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
+
+queue = []
+
+def search(query):
+    with youtube_dl.YoutubeDL({'format': 'bestaudio/best', 'noplaylist': True, 'quiet': True}) as ydl:
+        try: get(query)
+        except: info = ydl.extract_info(f'ytsearch:{query}', download=False)['entries'][0]
+        else: info = ydl.extract_info(query, download=False)
+    
+    return (info, info['formats'][0]['url'])
+
+async def join(ctx):
+    if not ctx.message.author.voice:
+            await ctx.send(f"請先加入語音頻道！")
+            return
+
+    else:
+        channel = ctx.message.author.voice.channel
+
+    await channel.connect()
+
+def check_queue(ctx):
+    if queue:
+        url = queue.pop(0)
+
+        ctx.message.guild.voice_client.play(discord.FFmpegPCMAudio(search(url)[1], **FFMPEG_OPTS), after=lambda x: check_queue(ctx))
+
 
 class YTDLSource(discord.PCMVolumeTransformer):
     def __init__(self, source, *, data, volume=1):
@@ -49,20 +78,7 @@ class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(description="Joins a voice channel")
-    async def join(self, ctx):
-        #Joins the channel
-
-        if not ctx.message.author.voice:
-            await ctx.send(f"請先加入語音頻道！")
-            return
-
-        else:
-            channel = ctx.message.author.voice.channel
-
-        await channel.connect()
-
-    @commands.command(description="Leaves the voice channel")
+    @commands.command(help="Leaves the voice channel")
     async def leave(self, ctx):
         #Leave the voice channel
 
@@ -71,20 +87,53 @@ class Music(commands.Cog):
             await voice_client.disconnect()
 
         else:
-            await ctx.send("沒有連接至任何語音頻道！使用join來讓機器人加入頻道")
+            await ctx.send("沒有連接至任何語音頻道！")
 
-    @commands.command(description="Plays the music (Bot will have to download the w4a file first)")
+    '''@commands.command(help="Plays the music (Bot will have to download the w4a file first)")
     async def play(self, ctx, *, url):
         #Plays the music
 
+        await join(ctx)
+
+        player = await YTDLSource.from_url(url, loop=self.bot.loop)
+        ctx.voice_client.play(player, after=lambda e: print(f'Player error: {e}') if e else None)
+
+        await ctx.send(f'**正在播放**: {player.title}')'''
+
+    @commands.command(help='Stream from url')
+    async def play(self, ctx, *, url):
+
+        if not ctx.message.guild.voice_client:
+            await join(ctx)
+
+        global queue
+
+        if not ctx.message.guild.voice_client.is_playing():
+
+            queue.append(url)
+
+            video, source = search(queue.pop(0))
+            
+            await ctx.send(f'**正在播放**: {video["title"]}')
+            ctx.message.guild.voice_client.play(discord.FFmpegPCMAudio(source, **FFMPEG_OPTS), after=lambda x: check_queue(ctx))
+
+
+        else:
+
+            queue.append(url)
+
+            await ctx.send(f'**已加入撥放清單**：{search(url)[0]["title"]}')
+
+    @commands.command(help='Clear the queue')
+    async def clear(self, ctx):
+        global queue
+        queue.clear()
+
         async with ctx.typing():
-            player = await YTDLSource.from_url(url, loop=self.bot.loop)
-            ctx.voice_client.play(player, after=lambda e: print(f'Player error: {e}') if e else None)
+            await ctx.send(f'**已清空播放清單**')
 
-        await ctx.send(f'**正在播放**: {player.title}')
-
-    '''@commands.command(name='loop', help='This command toggles loop mode')
-    async def loop_(ctx):
+    '''@commands.command(help='This command toggles loop mode')
+    async def loop(ctx):
         global loop
 
         if loop:
@@ -95,7 +144,14 @@ class Music(commands.Cog):
             await ctx.send('Loop mode is now `True!`')
             loop = True'''
 
-    @commands.command(description="Pause the music")
+    @commands.command(help='View the queue')
+    async def queue(self, ctx):
+        if len(queue) < 1:
+            await ctx.send('播放列表沒有音樂！')
+        else:
+            await ctx.send(f'Your queue is now {queue}')
+
+    @commands.command(help="Pause the music")
     async def pause(self, ctx):
         #Pause the music
 
@@ -106,7 +162,7 @@ class Music(commands.Cog):
         else:
             await ctx.send("機器人沒有在播放音樂！")
 
-    @commands.command(description="Resume the music")
+    @commands.command(help="Resume the music")
     async def resume(self, ctx):
         #Resume the music
 
@@ -117,13 +173,25 @@ class Music(commands.Cog):
         else:
             await ctx.send("之前沒有在播放音樂！使用play來播放音樂")
 
-    @commands.command(description="Stops the music")
-    async def stop(self, ctx):
-        #Stops the music
+    @commands.command(help="Stops the music")
+    async def skip(self, ctx):
+        #Skip the music
 
         voice_client = ctx.message.guild.voice_client
         if voice_client.is_playing():
             voice_client.stop()
+        
+        else:
+            await ctx.send("機器人沒有在播放音樂！")
+
+    @commands.command(help="Stops the music")
+    async def stop(self, ctx):
+        #Skip the music
+
+        voice_client = ctx.message.guild.voice_client
+        if voice_client.is_playing():
+            voice_client.stop()
+            queue.clear()
         
         else:
             await ctx.send("機器人沒有在播放音樂！")
