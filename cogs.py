@@ -1,9 +1,11 @@
+from threading import local
 import discord
 from discord.ext import commands
 import youtube_dl
 from requests import get
 from discord.errors import Forbidden
 import asyncio
+from random import shuffle
 
 youtube_dl.utils.bug_reports_message = lambda: ''
 
@@ -200,6 +202,20 @@ class Music(commands.Cog):
         source = local_queue.pop(0)
         ctx.message.guild.voice_client.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(executable='ffmpeg.exe', source='./audio files/' + source.rstrip('\n')), volume=0.1), after=lambda x: check_local_queue(ctx))
 
+    @commands.command(help='shuffle queue')
+    async def shuffle(self, ctx):
+        if not queue and not local_queue:
+            await ctx.send("no songs in queue!")
+            return
+
+        elif queue:
+            shuffle(queue)
+            
+        elif local_queue:
+            shuffle(local_queue)
+
+        await ctx.send("queue shuffled!")
+
     @commands.command(help="Leaves the voice channel")
     async def leave(self, ctx):
         #Leave the voice channel
@@ -216,6 +232,7 @@ class Music(commands.Cog):
 
         global queue
         queue.clear()
+        local_queue.clear()
 
         async with ctx.typing():
             await ctx.send(f'**已清空播放清單**')
@@ -277,6 +294,7 @@ class Music(commands.Cog):
         if voice_client.is_playing():
             voice_client.stop()
             queue.clear()
+            local_queue.clear()
         
         else:
             await ctx.send("沒有在播放音樂！")
