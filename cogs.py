@@ -3,13 +3,14 @@ from discord.ext import commands
 import youtube_dl
 from requests import get
 from discord.errors import Forbidden
+import asyncio
 
 youtube_dl.utils.bug_reports_message = lambda: ''
 
 # Global variables
 ytdl_format_options = {
     'format': 'bestaudio/best',
-    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
+    'outtmpl': './audio files/%(extractor)s-%(id)s-%(title)s.%(ext)s',
     'restrictfilenames': True,
     'noplaylist': True,
     'nocheckcertificate': True,
@@ -21,13 +22,24 @@ ytdl_format_options = {
     'source_address': '0.0.0.0' # bind to ipv4 since ipv6 addresses cause issues sometimes
 }
 
-FFMPEG_OPTS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
+FFMPEG_OPTS = {
+    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+    'options': '-vn'
+}
+
+ffmpeg_options = {
+    'options': '-vn'
+}
 
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 
 queue = []
 
+local_queue = []
+
 now_playing = ''
+
+download_filename = ''
 
 # Functions
 def search(query):
@@ -52,6 +64,19 @@ def check_queue(ctx):
 
         ctx.message.guild.voice_client.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(search(url)[1], **FFMPEG_OPTS), 0.1), after=lambda x: check_queue(ctx))
 
+def local_queue_init(playlist):
+    with open(f"./playlists/{playlist}.txt", "r") as f:
+        f.seek(0)
+        
+        global local_queue
+        local_queue = [ s.rstrip('\n') for s in f.readlines() ]
+
+def check_local_queue(ctx):
+    if local_queue:
+        source = local_queue.pop(0)
+        
+        ctx.message.guild.voice_client.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(executable='ffmpeg.exe', source='./audio files/' + source.rstrip('\n')), volume=0.1), after=lambda x: check_local_queue(ctx))
+
 async def send_embed(ctx, embed):
     """
     Function that handles the sending of embeds
@@ -70,6 +95,28 @@ async def send_embed(ctx, embed):
             await ctx.author.send(
                 f"Hey, seems like I can't send any message in {ctx.channel.name} on {ctx.guild.name}\n"
                 f"May you inform the server team about this issue? :slight_smile: ", embed=embed)
+
+class YTDLSource(discord.PCMVolumeTransformer):
+    def __init__(self, source, *, data, volume=0.1):
+        super().__init__(source, volume)
+        self.data = data
+        self.title = data.get('title')
+        self.url = data.get('url')
+
+    @classmethod
+    async def from_url(cls, url, *, loop=None, stream=False):
+        loop = loop or asyncio.get_event_loop()
+        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
+
+        if 'entries' in data:
+            # take first item from a playlist
+
+            data = data['entries'][0]
+
+        global filename
+
+        filename = data['url'] if stream else ytdl.prepare_filename(data)
+        return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
 
 # Discord commands
 class Music(commands.Cog):
@@ -110,6 +157,48 @@ class Music(commands.Cog):
             queue.append(url)
 
             await ctx.send(f'**已加入撥放清單**：{search(url)[0]["title"]}')
+
+    @commands.command(help="Download music from url")
+    async def download(self, ctx, url, playlist):
+        #download music from url
+
+        await YTDLSource.from_url(url, loop=self.bot.loop)
+
+        #wirte audio filename into "{playlist}.txt"
+        with open(f"./playlists/{playlist}.txt", 'a+') as f:
+
+            f.seek(0)
+
+            lines = [ s.rstrip('\n') for s in f.readlines() ]
+
+            global filename
+            filename = filename.lstrip("audio files\\")
+
+            if filename not in lines:
+                f.seek(2)
+                f.write(filename + '\n')
+                await ctx.send("**Done**")
+
+            else:
+                await ctx.send("**Already exists!**")
+
+    @commands.command(help='Play local playlist')
+    async def play_local(self, ctx, playlist):
+
+        if not ctx.message.author.voice:
+            await ctx.send(f"請先加入語音頻道！")
+            return
+
+        if not ctx.message.guild.voice_client:
+            await join(ctx)
+
+        await ctx.send(f'**Now playing playlist**: {playlist}')
+        local_queue_init(playlist)
+
+        global local_queue
+
+        source = local_queue.pop(0)
+        ctx.message.guild.voice_client.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(executable='ffmpeg.exe', source='./audio files/' + source.rstrip('\n')), volume=0.1), after=lambda x: check_local_queue(ctx))
 
     @commands.command(help="Leaves the voice channel")
     async def leave(self, ctx):

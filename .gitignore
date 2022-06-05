@@ -3,3 +3,4 @@ __pycache__/*.pyc
 *.m4a
 *.webm
 ffmpeg.exe
+*.txt
