@@ -11,7 +11,7 @@ token = os.getenv("token")
 intents = discord.Intents.all()
 bot = commands.Bot(
     command_prefix=commands.when_mentioned_or("!"),
-    description='眼睛好痛',
+    description='学校はマジで嫌いですわ～',
     intents=intents,
 )
 
@@ -23,6 +23,9 @@ async def on_ready():
     print(f'Logged in as {bot.user}')
     print('--------------------------')
 
-bot.load_extension('cogs')
+for filename in os.listdir('./cogs'):
+    if filename.endswith('.py'):
+        bot.load_extension(f'cogs.{filename[:-3]}')
 
-bot.run(token)
+if __name__ == "__main__":
+    bot.run(token)
