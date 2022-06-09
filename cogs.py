@@ -31,7 +31,7 @@ now_playing = ''
 
 # Functions
 def search(query):
-    with youtube_dl.YoutubeDL({'format': 'bestaudio/best', 'noplaylist': True, 'quiet': True}) as ydl:
+    with youtube_dl.YoutubeDL({'format': 'bestaudio/best', 'noplaylist': True}) as ydl:
         try: get(query)
         except: info = ydl.extract_info(f'ytsearch:{query}', download=False)['entries'][0]
         else: info = ydl.extract_info(query, download=False)
