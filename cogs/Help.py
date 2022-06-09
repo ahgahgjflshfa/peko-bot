@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from discord.errors import Forbidden
+from core.classes import Cog_Extension
 
 async def send_embed(ctx, embed):
     """
@@ -21,13 +22,10 @@ async def send_embed(ctx, embed):
                 f"Hey, seems like I can't send any message in {ctx.channel.name} on {ctx.guild.name}\n"
                 f"May you inform the server team about this issue? :slight_smile: ", embed=embed)
 
-class Help(commands.Cog):
+class Help(Cog_Extension):
     """
     Sends this help message
     """
-
-    def __init__(self, bot):
-        self.bot = bot
 
     @commands.command()
     # @commands.bot_has_permissions(add_reactions=True,embed_links=True)
@@ -125,14 +123,6 @@ class Help(commands.Cog):
 
         # sending reply embed using our own function defined above
         await send_embed(ctx, emb)
-
-
-# Bot settings
-intents = discord.Intents().all()
-bot = commands.Bot(
-    command_prefix=commands.when_mentioned_or("!"),
-    intents=intents
-)
 
 def setup(bot):
     bot.add_cog(Help(bot))

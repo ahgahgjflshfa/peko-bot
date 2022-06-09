@@ -4,11 +4,15 @@ import youtube_dl
 from requests import get
 import asyncio
 from random import shuffle
-import json
+import os
+from core.classes import Cog_Extension
 
 youtube_dl.utils.bug_reports_message = lambda: ''
 
 # Global variables
+
+Root_Dir = os.path.realpath(os.path.join(os.path.dirname(__file__), '..'))
+
 ytdl_format_options = {
     'format': 'bestaudio/best',
     'outtmpl': '../audio files/%(extractor)s-%(id)s-%(title)s.%(ext)s',
@@ -43,6 +47,7 @@ now_playing = ''
 download_filename = ''
 
 # Functions
+
 def search(query):
     with youtube_dl.YoutubeDL({'format': 'bestaudio/best', 'noplaylist': True, 'quiet': True}) as ydl:
         try: get(query)
@@ -66,7 +71,7 @@ def check_queue(ctx):
         ctx.message.guild.voice_client.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(search(url)[1], **FFMPEG_OPTS), 0.1), after=lambda x: check_queue(ctx))
 
 def local_queue_init(playlist):
-    with open(f"../playlists/{playlist}.txt", "r") as f:
+    with open(f"{Root_Dir}/playlists/{playlist}.txt", "r") as f:
         f.seek(0)
         
         global local_queue
@@ -77,6 +82,8 @@ def check_local_queue(ctx):
         source = local_queue.pop(0)
         
         ctx.message.guild.voice_client.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(executable='ffmpeg.exe', source='./audio files/' + source.rstrip('\n')), volume=0.1), after=lambda x: check_local_queue(ctx))
+
+# ?
 
 class YTDLSource(discord.PCMVolumeTransformer):
     def __init__(self, source, *, data, volume=0.1):
@@ -98,15 +105,16 @@ class YTDLSource(discord.PCMVolumeTransformer):
         global filename
 
         filename = data['url'] if stream else ytdl.prepare_filename(data)
-        return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
+        return cls(discord.FFmpegPCMAudio(filename, executable=f'{Root_Dir}\\cogs\\ffmpeg.exe', **ffmpeg_options), data=data)
 
 # Discord commands
-class Music(commands.Cog):
+
+class Music(Cog_Extension):
     """
     Musicですわ～
     """
 
-    def __init__(self, bot):
+    def __init__(self, bot) -> None:
         self.bot = bot
 
     @commands.command(help='Stream from url')
@@ -132,7 +140,7 @@ class Music(commands.Cog):
 
             async with ctx.typing():
                 await ctx.send(f'**正在播放**：{video["title"]}')
-                ctx.message.guild.voice_client.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(source, **FFMPEG_OPTS), volume=0.1), after=lambda x: check_queue(ctx))
+                ctx.message.guild.voice_client.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(source, executable=f'{Root_Dir}\\cogs\\ffmpeg.exe', **FFMPEG_OPTS), volume=0.1), after=lambda x: check_queue(ctx))
 
         else:
 
@@ -182,7 +190,7 @@ class Music(commands.Cog):
         global local_queue
 
         source = local_queue.pop(0)
-        ctx.message.guild.voice_client.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(executable='ffmpeg.exe', source='./audio files/' + source.rstrip('\n')), volume=0.1), after=lambda x: check_local_queue(ctx))
+        ctx.message.guild.voice_client.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(executable=f'{Root_Dir}\\cogs\\ffmpeg.exe', source='./audio files/' + source.rstrip('\n')), volume=0.1), after=lambda x: check_local_queue(ctx))
 
     @commands.command(help='shuffle queue')
     async def shuffle(self, ctx):
