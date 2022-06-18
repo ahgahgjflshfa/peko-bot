@@ -1,3 +1,6 @@
+#! /usr/bin/env python3
+#encoding: utf-8
+
 import discord
 from discord.ext import commands
 import youtube_dl
@@ -6,6 +9,7 @@ import asyncio
 from random import shuffle
 import os
 from core.classes import Cog_Extension
+from flask  import Flask, render_template, redirect
 
 youtube_dl.utils.bug_reports_message = lambda: ''
 
@@ -13,9 +17,11 @@ youtube_dl.utils.bug_reports_message = lambda: ''
 
 Root_Dir = os.path.realpath(os.path.join(os.path.dirname(__file__), '..'))
 
+print(Root_Dir)
+
 ytdl_format_options = {
     'format': 'bestaudio/best',
-    'outtmpl': '../audio files/%(extractor)s-%(id)s-%(title)s.%(ext)s',
+    'outtmpl': f'{Root_Dir}/audio files/%(extractor)s-%(id)s-%(title)s.%(ext)s',
     'restrictfilenames': True,
     'noplaylist': True,
     'nocheckcertificate': True,
@@ -71,17 +77,23 @@ def check_queue(ctx):
         ctx.message.guild.voice_client.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(search(url)[1], **FFMPEG_OPTS), 0.1), after=lambda x: check_queue(ctx))
 
 def local_queue_init(playlist):
+    
+    if not os.path.isfile(f"{Root_Dir}/playlists/{playlist}.txt"):
+        return False
+    
     with open(f"{Root_Dir}/playlists/{playlist}.txt", "r") as f:
         f.seek(0)
         
         global local_queue
         local_queue = [ s.rstrip('\n') for s in f.readlines() ]
+        
+    return True
 
 def check_local_queue(ctx):
     if local_queue:
-        source = local_queue.pop(0)
+        audio = local_queue.pop(0)
         
-        ctx.message.guild.voice_client.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(executable='ffmpeg.exe', source='./audio files/' + source.rstrip('\n')), volume=0.1), after=lambda x: check_local_queue(ctx))
+        ctx.message.guild.voice_client.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(executable="ffmpeg", source=f'{Root_Dir}/audio files/' + audio.rstrip('\n')), volume=0.1), after=lambda x: check_local_queue(ctx))
 
 # ?
 
@@ -105,7 +117,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
         global filename
 
         filename = data['url'] if stream else ytdl.prepare_filename(data)
-        return cls(discord.FFmpegPCMAudio(filename, executable=f'{Root_Dir}\\cogs\\ffmpeg.exe', **ffmpeg_options), data=data)
+        return cls(discord.FFmpegPCMAudio(filename, executable="ffmpeg", **ffmpeg_options), data=data)
 
 # Discord commands
 
@@ -117,8 +129,12 @@ class Music(Cog_Extension):
     def __init__(self, bot) -> None:
         self.bot = bot
 
-    @commands.command(help='Stream from url')
-    async def play(self, ctx, *, url):
+    @commands.command(help='Format: !play <url>\nStream from url')
+    async def play(self, ctx, *, url=None):
+
+        if url == None:
+            await ctx.send("**You did not give an url!**")
+            return
 
         if not ctx.message.author.voice:
             await ctx.send(f"請先加入語音頻道！")
@@ -140,7 +156,7 @@ class Music(Cog_Extension):
 
             async with ctx.typing():
                 await ctx.send(f'**正在播放**：{video["title"]}')
-                ctx.message.guild.voice_client.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(source, executable=f'{Root_Dir}\\cogs\\ffmpeg.exe', **FFMPEG_OPTS), volume=0.1), after=lambda x: check_queue(ctx))
+                ctx.message.guild.voice_client.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(source, executable="ffmpeg", **FFMPEG_OPTS), volume=0.1), after=lambda x: check_queue(ctx))
 
         else:
 
@@ -148,22 +164,26 @@ class Music(Cog_Extension):
 
             await ctx.send(f'**已加入撥放清單**：{search(url)[0]["title"]}')
 
-    @commands.command(help="Download music from url")
+    @commands.command(help="Format: !download <url> <playlist name>\nDownload music from url\n**BOT OWNER ONLY**")
     @commands.is_owner()
-    async def download(self, ctx, url, playlist):
+    async def download(self, ctx, url, playlist=None):
         #download music from url
+
+        if playlist == None:
+            await ctx.send("**You did not give a playlist!**")
+            return
 
         await YTDLSource.from_url(url, loop=self.bot.loop)
 
         #wirte audio filename into "{playlist}.txt"
-        with open(f"../playlists/{playlist}.txt", 'a+') as f:
+        with open(f"{Root_Dir}/playlists/{playlist}.txt", 'a+') as f:
 
             f.seek(0)
 
             lines = [ s.rstrip('\n') for s in f.readlines() ]
 
             global filename
-            filename = filename.lstrip("audio files\\")
+            filename = filename.lstrip(f"{Root_Dir}/audio files/")
 
             if filename not in lines:
                 f.seek(2)
@@ -173,9 +193,13 @@ class Music(Cog_Extension):
             else:
                 await ctx.send("**Already exists!**")
 
-    @commands.command(help='Play local playlist')
+    @commands.command(help='Format: !play_local <playlist name>\nPlay local playlist\n**BOT OWNER ONLY**')
     @commands.is_owner()
-    async def play_local(self, ctx, playlist):
+    async def play_local(self, ctx, playlist=None):
+        
+        if playlist == None:
+            await ctx.send("**You did not give a playlist!**")
+            return
 
         if not ctx.message.author.voice:
             await ctx.send(f"請先加入語音頻道！")
@@ -184,13 +208,16 @@ class Music(Cog_Extension):
         if not ctx.message.guild.voice_client:
             await join(ctx)
 
+        if not local_queue_init(playlist):
+            await ctx.send("**Playlist not exist**")
+            return
+        
         await ctx.send(f'**Now playing playlist**: {playlist}')
-        local_queue_init(playlist)
 
         global local_queue
 
-        source = local_queue.pop(0)
-        ctx.message.guild.voice_client.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(executable=f'{Root_Dir}\\cogs\\ffmpeg.exe', source='./audio files/' + source.rstrip('\n')), volume=0.1), after=lambda x: check_local_queue(ctx))
+        audio = local_queue.pop(0)
+        ctx.message.guild.voice_client.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(executable="ffmpeg", source=f'{Root_Dir}/audio files/' + audio.rstrip('\n')), volume=0.1), after=lambda x: check_local_queue(ctx))
 
     @commands.command(help='shuffle queue')
     async def shuffle(self, ctx):
