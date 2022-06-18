@@ -16,8 +16,6 @@ youtube_dl.utils.bug_reports_message = lambda: ''
 
 Root_Dir = os.path.realpath(os.path.join(os.path.dirname(__file__), '..'))
 
-print(Root_Dir)
-
 ytdl_format_options = {
     'format': 'bestaudio/best',
     'outtmpl': f'{Root_Dir}/audio files/%(extractor)s-%(id)s-%(title)s.%(ext)s',
@@ -122,19 +120,12 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
 class Music(Cog_Extension):
     """
-    Musicですわ～
+    Music命令ですわ～
     """
 
-    def __init__(self, bot) -> None:
-        self.bot = bot
-
     @commands.command(help='Format: !play <url>\nStream from url')
-    async def play(self, ctx, *, url=None):
-
-        if url == None:
-            await ctx.send("**You did not give an url!**")
-            return
-
+    async def play(self, ctx, *, url):
+        
         if not ctx.message.author.voice:
             await ctx.send(f"請先加入語音頻道！")
             return
@@ -165,12 +156,8 @@ class Music(Cog_Extension):
 
     @commands.command(help="Format: !download <url> <playlist name>\nDownload music from url\n**BOT OWNER ONLY**")
     @commands.is_owner()
-    async def download(self, ctx, url, playlist=None):
+    async def download(self, ctx, url, playlist):
         #download music from url
-
-        if playlist == None:
-            await ctx.send("**You did not give a playlist!**")
-            return
 
         await YTDLSource.from_url(url, loop=self.bot.loop)
 

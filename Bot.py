@@ -24,6 +24,37 @@ async def on_ready():
     print(f'Logged in as {bot.user}')
     print('--------------------------')
 
+@bot.command()
+async def load(ctx, extention):
+    """
+    Load an extention
+    """
+
+    bot.load_extension(f'cogs.{extention}')
+    await ctx.send(f'**Loaded {extention}**')
+
+@bot.command()
+async def unload(ctx, extention):
+    """
+    Unload an extention
+    """
+
+    bot.unload_extension(f'cogs.{extention}')
+    await ctx.send(f'**Unloaded {extention}**')
+
+@bot.command()
+async def reload(ctx, extention):
+    """
+    Reload an extention
+    """
+
+    bot.reload_extension(f'cogs.{extention}')
+    await ctx.send(f'**Reloaded {extention}**')
+
+@bot.command()
+async def ping(ctx):
+    await ctx.send(f'{round(bot.latency * 1000)}ms') # Already changed to micro second
+
 for filename in os.listdir('./cogs'):
     if filename.endswith('.py'):
         bot.load_extension(f'cogs.{filename[:-3]}')
