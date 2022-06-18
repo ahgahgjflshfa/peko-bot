@@ -9,7 +9,6 @@ import asyncio
 from random import shuffle
 import os
 from core.classes import Cog_Extension
-from flask  import Flask, render_template, redirect
 
 youtube_dl.utils.bug_reports_message = lambda: ''
 
