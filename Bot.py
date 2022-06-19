@@ -25,6 +25,7 @@ async def on_ready():
     print('--------------------------')
 
 @bot.command()
+@commands.is_owner()
 async def load(ctx, extention):
     """
     Load an extention
@@ -34,6 +35,7 @@ async def load(ctx, extention):
     await ctx.send(f'**Loaded {extention}**')
 
 @bot.command()
+@commands.is_owner()
 async def unload(ctx, extention):
     """
     Unload an extention
@@ -43,6 +45,7 @@ async def unload(ctx, extention):
     await ctx.send(f'**Unloaded {extention}**')
 
 @bot.command()
+@commands.is_owner()
 async def reload(ctx, extention):
     """
     Reload an extention
