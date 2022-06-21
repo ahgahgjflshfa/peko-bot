@@ -12,7 +12,6 @@ class Reaction(Cog_Extension):
     """
 
     @commands.command(help='!rrset <emoji> <role>\nSet emoji reaction with a role')
-    @commands.is_owner()
     async def rrset(self, ctx, emoji, role: discord.Role):
         with open(f'{Root_Dir}/config/ReactRole.json') as json_file:
             data = json.load(json_file)
@@ -20,7 +19,7 @@ class Reaction(Cog_Extension):
             new_react_role = {
                 'role_name': role.name, 
                 'role_id': role.id,
-                'emoji': emoji,
+                'emoji': emoji
             }
 
             if str(ctx.guild.id) not in data:
@@ -30,12 +29,12 @@ class Reaction(Cog_Extension):
                 for info in data[str(ctx.guild.id)]:
                     if info["role_id"] == role.id:
                         #判斷這個身分組是否已設定
-                        await ctx.send("Role already assigned!", delete_after=10.0)
+                        await ctx.send("Role already assigned!", delete_after=5.0)
                         return
                     
                     elif info["emoji"] == emoji:
                         #判斷這個貼圖是否已設定
-                        await ctx.send("Emoji already used!", delete_after=10.0)
+                        await ctx.send("Emoji already used!", delete_after=5.0)
                         return
 
                     else:
@@ -50,8 +49,9 @@ class Reaction(Cog_Extension):
         with open(f'{Root_Dir}/config/reactrole.json', 'w') as f:
             json.dump(data, f, indent=4)
 
+        await ctx.send("Set")
+
     @commands.command(help="!rrmessage\nSend message listened by the bot for getting roles")
-    @commands.is_owner()
     async def rrmessage(self, ctx):
         with open(f'{Root_Dir}/config/ReactRole.json') as json_file:
             data = json.load(json_file)
@@ -65,7 +65,7 @@ class Reaction(Cog_Extension):
             emoji = []
             description = ''
             for info in data[str(ctx.guild.id)]:
-                description += info["emoji"] + ': ' + f'<@&{str(info["role_id"])}>\n'
+                description += f'{info["emoji"]} | <@&{str(info["role_id"])}>\n'
                 emoji.append(info["emoji"])
 
             embed.description = description
@@ -83,7 +83,6 @@ class Reaction(Cog_Extension):
             json.dump(data, f, indent=4)
 
     @commands.command(help='No arguments\nClear all the settings')
-    @commands.is_owner()
     async def rrclear(self, ctx):
         with open(f'{Root_Dir}/config/ReactRole.json') as json_file:
             data = json.load(json_file)
@@ -101,7 +100,7 @@ class Reaction(Cog_Extension):
         with open(f'{Root_Dir}/config/MessageID.json', 'w') as f:
             json.dump(data, f, indent=4)
 
-        await ctx.send('Setting cleared', delete_after=10.0)
+        await ctx.send('Setting cleared', delete_after=5.0)
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
@@ -112,7 +111,6 @@ class Reaction(Cog_Extension):
             with open(f'{Root_Dir}/config/MessageID.json') as f:
                 data = json.load(f)
                 if str(payload.guild_id) not in data:
-                    self.bot.send("Not setup yet")
                     return
                 
                 if not payload.message_id == data[str(payload.guild_id)]:
@@ -133,7 +131,6 @@ class Reaction(Cog_Extension):
         with open(f'{Root_Dir}/config/MessageID.json') as f:
             data = json.load(f)
             if str(payload.guild_id) not in data:
-                self.bot.send("Not setup yet")
                 return
             
             if not payload.message_id == data[str(payload.guild_id)]:
