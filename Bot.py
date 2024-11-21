@@ -12,7 +12,7 @@ token = os.getenv("token")
 intents = discord.Intents.all()
 bot = commands.Bot(
     command_prefix=commands.when_mentioned_or("!"),
-    description='学校はマジで嫌いですわ～',
+    description='碼農',
     intents=intents,
 )
 
